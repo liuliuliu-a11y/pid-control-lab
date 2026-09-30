@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="PID 控制实验台：配置对象模型、拖动参数、对比响应与性能指标。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>PID Lab · 控制实验台</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="masthead">
+  <a class="brand" href="./" aria-label="PID Lab 首页"><span class="brand-mark">∿</span><span>PID<span class="brand-light"> LAB</span></span></a>
+  <div class="header-title">控制实验台 <span>PROCESS CONTROL / 01</span></div>
+  <a href="#method" class="text-link">模型与算法 ↗</a>
+</header>
+<main>
+  <section class="intro">
+    <div><p class="eyebrow">从对象到回路，从参数到响应</p><h1>看见每一次调整的影响。</h1><p class="intro-copy">配置对象、施加扰动、保留一组对比。所有计算在浏览器内完成。</p></div>
+    <div class="toolbar"><button id="save-baseline">保存当前对比</button><button id="share" class="primary">分享这组参数 ↗</button><button id="csv">导出数据 ↓</button></div>
+  </section>
+  <nav class="experiments" aria-label="引导实验">
+    <span>实验</span><button data-preset="p">01 仅比例</button><button data-preset="pi" class="selected">02 PI 消偏</button><button data-preset="aggressive">03 过强积分</button><button data-preset="pid">04 微分修正</button><button data-preset="noise">05 测量噪声</button><button data-preset="disturbance">06 抗扰响应</button>
+  </nav>
+  <p id="experiment-note" class="experiment-note"></p>
+  <div class="workspace">
+    <aside class="controls" aria-label="实验配置">
+      <section class="control-section">
+        <div class="section-title"><h2>01 / 控制器</h2><button id="reset" class="quiet">恢复默认</button></div>
+        <div id="pid-controls"></div>
+        <div class="checks"><label><input id="enable-i" type="checkbox" checked>积分 I</label><label><input id="enable-d" type="checkbox">微分 D</label></div>
+        <p class="subtle">采用 Kp、Ti、Td 形式；Ti 越小，积分累积越快。D 对测量值计算。</p>
+      </section>
+      <section class="control-section">
+        <h2>02 / 被控对象</h2>
+        <label class="field">模型<select id="model"><option value="sopdt">温度 · 二阶惯性＋迟延</option><option value="fopdt">温度 · 一阶惯性＋迟延</option><option value="integrating">液位 · 积分＋迟延</option></select></label>
+        <div id="model-controls"></div>
+      </section>
+      <section class="control-section">
+        <h2>03 / 输入与观察</h2>
+        <label class="field">试验场景<select id="scenario"><option value="step">设定值阶跃</option><option value="disturbance">持续负荷扰动</option><option value="both">设定值＋负荷扰动</option></select></label>
+        <div id="scenario-controls"></div>
+      </section>
+      <details class="control-section"><summary>高级设置</summary><div id="advanced-controls"></div><label class="check-row"><input id="anti-windup" type="checkbox" checked>条件积分抗饱和</label></details>
+    </aside>
+    <section class="results" aria-label="模拟结果">
+      <div class="plot-heading"><div><p class="eyebrow">CLOSED-LOOP RESPONSE</p><h2 id="response-title">温度响应</h2></div><span id="model-tag" class="model-tag"></span></div>
+      <div class="legend"><span><i class="line sp"></i>设定值 SP</span><span><i class="line pv"></i>真实值 PV</span><span id="measured-key"><i class="line measurement"></i>测量值</span><span id="baseline-key"><i class="line baseline"></i>对比 PV <button id="clear-baseline" class="quiet" aria-label="清除对比">×</button></span></div>
+      <div id="process-chart" class="chart" role="img" aria-label="过程响应曲线"></div>
+      <div class="plot-subhead"><h3>控制输出</h3><div class="legend"><span><i class="line output"></i>下发指令</span><span><i class="line actual"></i>实际作用量</span></div></div>
+      <div id="output-chart" class="chart" role="img" aria-label="控制输出曲线"></div>
+      <div class="status-strip" role="status" aria-live="polite"><span id="status"></span><span id="calculation"></span></div>
+      <section class="metrics" aria-label="性能指标" id="metrics"></section>
+      <div id="compare-note" class="compare-note" hidden></div>
+      <details class="contributions"><summary>P / I / D 输出贡献</summary><div class="legend"><span><i class="line p"></i>P</span><span><i class="line i"></i>I</span><span><i class="line d"></i>D</span></div><div id="terms-chart" class="chart" role="img" aria-label="比例、积分与微分贡献曲线"></div><p class="subtle">未限幅输出＝基准输出＋P＋I＋D。下发指令经过上下限限制；实际作用量还包含对象迟延及执行惯性。</p></details>
+      <section class="comparison" id="compare-panel" hidden><div class="section-title"><h3>参数与效果对比</h3></div><div class="table-wrap"><table><thead><tr><th>项目</th><th>当前</th><th>已保存</th></tr></thead><tbody id="compare-body"></tbody></table></div></section>
+    </section>
+  </div>
+  <section id="method" class="method">
+    <div><p class="eyebrow">MODEL NOTES</p><h2>每条曲线都有明确的计算条件。</h2><p>这是可配置的通用对象仿真，用于培训、机理讨论和方案对比。参数不代表具体现场设备的整定建议。</p></div>
+    <div class="method-columns">
+      <article><h3>对象与单位</h3><p>温度采用一阶或二阶惯性加迟延。液位采用输入流量差累积的积分型对象。输入以输出百分点表示；时间统一为分钟。液位越过 0–100% 时停止计算，避免把越界模型当作实际工艺。</p><code id="equation"></code></article>
+      <article><h3>控制器与测量</h3><p>P＝Kp·e；积分变化率＝Kp·e/Ti；D＝−Kp·Td·测量变化率（带一阶滤波）。基准输出 40%；阶跃及组合场景初始真实值为 50，纯扰动场景从目标值起步。积分按上下限实施条件累积。噪声为固定序列的有界测量噪声，每 0.02 分钟更新一次，改变数值步长不会更换噪声序列。</p><p>所有参数变化均从相同初始状态重算。分享链接包含配置，不上传数据。</p></article>
+      <article><h3>指标口径</h3><p>指标从第 1 分钟的阶跃或第 5 分钟的扰动起算；组合场景从第 10 分钟的扰动起算。调节时间按用户设置的目标误差带计算，末段至少保持 3 分钟才确认；窗口末偏差不自动等于稳态偏差。</p><p>IAE＝∫|e|dt；ITAE＝∫(t−事件时刻)|e|dt；均以真实值计算。结果保留输出限幅与抗饱和影响。</p></article>
+    </div>
+  </section>
+</main>
+<footer><span>PID LAB / 工程教学演示</span><a href="../">打开原始水箱演示 ↗</a><span>版本 1.0 · 本地计算</span></footer>
+<div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
